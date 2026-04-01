@@ -1,0 +1,124 @@
+/* --- 1. GLOBAL RESET & CORE LAYOUT --- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box; /* PREVENTS GAPS: Keeps padding inside the width */
+  transition-property: background-color, border-color, color, transform, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden; /* Prevents horizontal scrolling */
+  background: #020617;
+}
+
+#root {
+  min-height: 100vh;
+  background-color: var(--bg-primary, #020617);
+  color: var(--text-primary, #ffffff);
+}
+
+/* --- 2. THE MAIN WRAPPER (THE GAP KILLER) --- */
+.App {
+  display: flex; /* Sidebar and Main side-by-side */
+  width: 100vw;
+  min-height: 100vh;
+  background: #020617;
+}
+
+/* The Sidebar: Fixed width to match your JS (280px) */
+.sidebar {
+  width: 280px !important;
+  min-width: 280px;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  background: #0f172a;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* The Dashboard Area: Snaps to the sidebar */
+main {
+  margin-left: 280px; /* Pushes content out from under the fixed sidebar */
+  width: calc(100% - 280px); /* Fills the rest of the screen exactly */
+  min-height: 100vh;
+  padding: 2rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  background: inherit;
+}
+
+/* --- 3. UI COMPONENTS & INPUTS --- */
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: #10b981 !important;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.5);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  width: 100%;
+}
+
+/* --- 4. ANIMATIONS --- */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+
+/* --- 5. GLOBAL LIGHT MODE OVERRIDE --- */
+.light-mode {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+.light-mode #root, 
+.light-mode .App, 
+.light-mode main {
+  background-color: #F8FAFC !important;
+}
+
+.light-mode .sidebar {
+  background-color: #FFFFFF !important;
+  border-right: 1px solid #E2E8F0;
+}
+
+.light-mode .glass-card {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.light-mode h1, 
+.light-mode h2, 
+.light-mode h3, 
+.light-mode p {
+  color: #0F172A !important;
+}

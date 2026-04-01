@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "FocusSync Guardian",
+  "version": "1.0",
+  "description": "Monitors study focus and syncs with the FocusSync Virtual Library.",
+  "permissions": [
+    "tabs",
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:5000/*",
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "../assets/icons/focused.png",
+      "48": "../assets/icons/focused.png",
+      "128": "../assets/icons/focused.png"
+    }
+  },
+  "icons": {
+    "16": "../assets/icons/focused.png",
+    "48": "../assets/icons/focused.png",
+    "128": "../assets/icons/focused.png"
+  }
+}
