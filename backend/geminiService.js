@@ -7,17 +7,37 @@ async function generateQuiz(content) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // STRICT PROMPT: Forces AI to stay on topic (e.g., Apples)
+    // HIGH-PRECISION PROMPT: QUEST Framework for MCQ Generation
     const prompt = `
-      CONTEXT: "${content}"
-      TASK: Generate exactly 10 MCQs based strictly on the CONTEXT above.
-      
-      FORMAT RULES:
-      1. Return ONLY a raw JSON array.
-      2. No markdown (no \`\`\`json), no preamble.
-      3. Fields: "question", "options" (4 items), "answer", "explanation".
-      4. Use QUEST Framework (Quality, Uniqueness, Effort, Structure, Transparency).
-    `;
+CONTEXT MATERIAL: "${content}"
+
+QUEST FRAMEWORK INSTRUCTIONS:
+- Quality: Generate questions that test deep understanding, not surface-level recall
+- Uniqueness: Create original questions not found in standard textbooks
+- Effort: Design questions requiring analysis and application of concepts
+- Structure: Use clear, unambiguous language with logical question flow
+- Transparency: Provide detailed explanations showing reasoning process
+
+TASK: Generate exactly 10 high-quality multiple-choice questions (MCQs) that are STRICTLY based on the CONTEXT MATERIAL above.
+
+CRITICAL REQUIREMENTS:
+1. Questions MUST be directly derived from the provided content - no external knowledge
+2. Each question should test comprehension of specific concepts from the material
+3. Options must be plausible but only one definitively correct based on the content
+4. Explanations should reference specific parts of the context material
+5. Questions should progress from basic recall to deeper analysis
+
+OUTPUT FORMAT:
+Return ONLY a valid JSON array with exactly 10 objects. Each object must have:
+- "question": Clear, focused question text
+- "options": Array of exactly 4 strings (A, B, C, D format not required)
+- "answer": Exact string matching one of the options
+- "explanation": Detailed explanation referencing the context material
+
+EXAMPLE STRUCTURE:
+[{"question": "What is X according to the material?", "options": ["A", "B", "C", "D"], "answer": "B", "explanation": "The material states..."}]
+
+DO NOT include any text outside the JSON array.`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
