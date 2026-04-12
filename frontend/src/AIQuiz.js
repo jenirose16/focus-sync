@@ -59,10 +59,10 @@ const AIQuiz = () => {
 
   return (
     <div style={{
-      marginLeft: '280px',
       padding: '2rem',
-      background: 'inherit', // Dynamic background based on Light/Dark mode
+      background: 'inherit',
       minHeight: '100vh',
+      width: '100%',
     }}>
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>

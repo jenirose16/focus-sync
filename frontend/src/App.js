@@ -76,10 +76,10 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard': return <Dashboard user={user} />;
-      case 'study-room': return <StudyRoom />;
+      case 'study-room': return <StudyRoom user={user} onUpdateUser={setUser} />;
       case 'ai-quiz': return <AIQuiz />;
-      case 'analytics': return <Analytics />;
-      case 'settings': return <Settings />;
+      case 'analytics': return <Analytics user={user} />;
+      case 'settings': return <Settings user={user} />;
       default: return <Dashboard user={user} />;
     }
   };
@@ -93,12 +93,13 @@ function App() {
   // --- THE LAYOUT ENGINE ---
   return (
     <div className="App" style={{ 
-      display: 'flex',          // 1. Aligns Sidebar and Main in a row
+      display: 'flex',          // Root container uses flexbox
       minHeight: '100vh', 
       background: '#020617',
-      width: '100vw',           // 2. Occupies full browser width
-      overflowX: 'hidden',      // 3. Prevents horizontal jitter
-      boxSizing: 'border-box'
+      width: '100vw',
+      overflowX: 'hidden',
+      boxSizing: 'border-box',
+      alignItems: 'flex-start'  // Align items to top to eliminate centered-gap
     }}>
       {/* Sidebar is fixed at 280px */}
       <Sidebar 
@@ -107,16 +108,15 @@ function App() {
         user={user} 
       />
       
-      {/* Main content Area: The "Gap Killer" */}
+      {/* Main content Area: Flush with sidebar */}
       <main style={{ 
-        marginLeft: '280px',    // 4. Matches the sidebar width exactly
-        flexGrow: 1,            // 5. Forces the container to expand to the right edge
+        width: 'calc(100% - 280px)', // Use calc to ensure perfect flush alignment
+        flexGrow: 1,
         minHeight: '100vh',
         background: '#020617',
-        width: 'calc(100% - 280px)', // 6. Mathematical width lock
         display: 'flex',
         flexDirection: 'column',
-        padding: '0',           // 7. Remove any default padding that creates a gap
+        padding: '0',
         boxSizing: 'border-box'
       }}>
         {/* We wrap the rendered page to ensure it fills 100% of the main area */}

@@ -1,9 +1,50 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const Dashboard = ({ user }) => {
+  const [historyData, setHistoryData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?._id) {
+      fetchHistoryData();
+    }
+  }, [user]);
+
+  const fetchHistoryData = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/user/history/${user._id}`);
+      const data = await response.json();
+      setHistoryData(data);
+    } catch (error) {
+      console.error('Failed to fetch history:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{
+        width: '100%',
+        padding: '2rem',
+        background: '#020617',
+        minHeight: '100vh',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <div style={{ color: '#94a3b8' }}>Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  const totalXP = historyData?.user?.totalXP || 0;
+  const totalSessions = historyData?.totalSessions || 0;
+  const totalFocusTime = historyData?.totalFocusTime || 0;
+
   return (
     <div style={{
-      marginLeft: '280px',
+      width: '100%',
       padding: '2rem',
       background: '#020617',
       minHeight: '100vh',
@@ -39,7 +80,7 @@ const Dashboard = ({ user }) => {
               margin: '0.25rem 0',
               fontWeight: '500',
             }}>
-              XP: <span style={{ color: '#10b981', fontWeight: '700' }}>{user?.totalXP || 0}</span>
+              XP: <span style={{ color: '#10b981', fontWeight: '700' }}>{totalXP}</span>
             </p>
             <p style={{
               color: '#cbd5e1',
@@ -47,7 +88,7 @@ const Dashboard = ({ user }) => {
               margin: '0.25rem 0',
               fontWeight: '500',
             }}>
-              Streak: <span style={{ color: '#f59e0b', fontWeight: '700' }}>5 days</span>
+              Sessions: <span style={{ color: '#f59e0b', fontWeight: '700' }}>{totalSessions}</span>
             </p>
           </div>
         </div>
@@ -90,7 +131,7 @@ const Dashboard = ({ user }) => {
                 marginTop: '0.5rem',
                 textAlign: 'center',
               }}>
-                45 min today
+                {Math.round(totalFocusTime * 60)} min today
               </p>
             </div>
           </div>
@@ -104,8 +145,6 @@ const Dashboard = ({ user }) => {
               color: '#f1f5f9',
               fontSize: '16px',
               fontWeight: '700',
-              marginBottom: '1.5rem',
-              margin: 0,
               marginBottom: '1.5rem',
             }}>
               📋 Daily Objectives
@@ -197,8 +236,6 @@ const Dashboard = ({ user }) => {
             fontSize: '16px',
             fontWeight: '700',
             marginBottom: '1.5rem',
-            margin: 0,
-            marginBottom: '1.5rem',
           }}>
             📊 Weekly Stats
           </h3>
@@ -229,7 +266,7 @@ const Dashboard = ({ user }) => {
                 fontWeight: '700',
                 margin: '0.5rem 0 0 0',
               }}>
-                14h 30m
+                {Math.round(totalFocusTime * 10) / 10}h
               </p>
             </div>
             <div style={{
@@ -254,7 +291,7 @@ const Dashboard = ({ user }) => {
                 fontWeight: '700',
                 margin: '0.5rem 0 0 0',
               }}>
-                8
+                {totalSessions}
               </p>
             </div>
             <div style={{
@@ -279,7 +316,7 @@ const Dashboard = ({ user }) => {
                 fontWeight: '700',
                 margin: '0.5rem 0 0 0',
               }}>
-                +850
+                +{totalXP}
               </p>
             </div>
           </div>

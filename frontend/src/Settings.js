@@ -62,10 +62,10 @@ const Settings = () => {
 
   return (
     <div style={{
-      marginLeft: '280px',
       padding: '2rem',
       background: '#020617',
       minHeight: '100vh',
+      width: '100%',
     }}>
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>

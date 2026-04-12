@@ -1,29 +1,66 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart3, Clock, BookOpen, Target } from 'lucide-react';
 
-const Analytics = () => {
-  // Sample data for weekly activity
-  const weeklyData = [
-    { day: 'Mon', hours: 5.5, percentage: 69 },
-    { day: 'Tue', hours: 4.2, percentage: 52 },
-    { day: 'Wed', hours: 6.8, percentage: 85 },
-    { day: 'Thu', hours: 3.9, percentage: 49 },
-    { day: 'Fri', hours: 4.5, percentage: 56 },
-  ];
+const Analytics = ({ user }) => {
+  const [historyData, setHistoryData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?._id) {
+      fetchHistoryData();
+    }
+  }, [user]);
+
+  const fetchHistoryData = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/user/history/${user._id}`);
+      const data = await response.json();
+      setHistoryData(data);
+    } catch (error) {
+      console.error('Failed to fetch history:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{
+        width: '100%',
+        padding: '2rem',
+        background: '#020617',
+        minHeight: '100vh',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <div style={{ color: '#94a3b8' }}>Loading analytics...</div>
+      </div>
+    );
+  }
+
+  // Calculate stats from history data
+  const totalFocusTime = historyData?.totalFocusTime || 0;
+  const totalSessions = historyData?.totalSessions || 0;
+  const avgFocusScore = historyData?.sessions?.length > 0
+    ? Math.round(historyData.sessions.reduce((sum, session) => sum + (session.focusScore || 0), 0) / historyData.sessions.length)
+    : 0;
+
+  const focusTrends = historyData?.focusTrends || [];
 
   const stats = [
-    { label: 'Total Focused Hours', value: '24.5', icon: Clock, color: '#10b981' },
-    { label: 'Quizzes Completed', value: '42', icon: BookOpen, color: '#8b5cf6' },
-    { label: 'Avg. Focus Score', value: '88%', icon: Target, color: '#f59e0b' },
+    { label: 'Total Focused Hours', value: `${Math.round(totalFocusTime * 10) / 10}h`, icon: Clock, color: '#10b981' },
+    { label: 'Quizzes Completed', value: totalSessions.toString(), icon: BookOpen, color: '#8b5cf6' },
+    { label: 'Avg. Focus Score', value: `${avgFocusScore}%`, icon: Target, color: '#f59e0b' },
   ];
 
   return (
     <div style={{
-      marginLeft: '280px',
       padding: '2rem',
       background: '#020617',
       minHeight: '100vh',
+      width: '100%',
     }}>
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
@@ -122,61 +159,67 @@ const Analytics = () => {
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
+          gridTemplateColumns: 'repeat(7, 1fr)',
           gap: '1rem',
           marginBottom: '2rem',
         }}>
-          {weeklyData.map((item, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              transition={{ delay: 0.3 + idx * 0.05 }}
-              style={{
-                textAlign: 'center',
-              }}
-            >
-              <div style={{
-                marginBottom: '1rem',
-                position: 'relative',
-                height: '200px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-end',
-              }}>
-                <motion.div
-                  initial={{ height: 0 }}
-                  animate={{ height: `${item.percentage}%` }}
-                  transition={{ delay: 0.4 + idx * 0.05, duration: 0.6 }}
-                  style={{
-                    background: `linear-gradient(180deg, #10b981 0%, #059669 100%)`,
-                    borderRadius: '8px 8px 0 0',
-                    position: 'relative',
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    top: '-24px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    color: '#f1f5f9',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {item.hours}h
-                  </div>
-                </motion.div>
-              </div>
-              <p style={{
-                color: '#94a3b8',
-                fontSize: '13px',
-                fontWeight: '500',
-              }}>
-                {item.day}
-              </p>
-            </motion.div>
-          ))}
+          {focusTrends.slice(-7).map((item, idx) => {
+            const date = new Date(item.date);
+            const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+            const percentage = Math.min(Math.round((item.hours / 8) * 100), 100); // Max 8 hours = 100%
+
+            return (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                transition={{ delay: 0.3 + idx * 0.05 }}
+                style={{
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{
+                  marginBottom: '1rem',
+                  position: 'relative',
+                  height: '200px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                }}>
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: `${percentage}%` }}
+                    transition={{ delay: 0.4 + idx * 0.05, duration: 0.6 }}
+                    style={{
+                      background: `linear-gradient(180deg, #10b981 0%, #059669 100%)`,
+                      borderRadius: '8px 8px 0 0',
+                      position: 'relative',
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute',
+                      top: '-24px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      color: '#f1f5f9',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {item.hours.toFixed(1)}h
+                    </div>
+                  </motion.div>
+                </div>
+                <p style={{
+                  color: '#94a3b8',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                }}>
+                  {dayName}
+                </p>
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* Chart Footer Info */}
@@ -192,7 +235,7 @@ const Analytics = () => {
               Total This Week
             </p>
             <p style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: '700' }}>
-              28.9h
+              {focusTrends.reduce((sum, item) => sum + item.hours, 0).toFixed(1)}h
             </p>
           </div>
           <div>
@@ -200,7 +243,11 @@ const Analytics = () => {
               Best Day
             </p>
             <p style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: '700' }}>
-              Wed (6.8h)
+              {focusTrends.length > 0 ? (() => {
+                const best = focusTrends.reduce((max, item) => item.hours > max.hours ? item : max, focusTrends[0]);
+                const date = new Date(best.date);
+                return `${date.toLocaleDateString('en-US', { weekday: 'short' })} (${best.hours.toFixed(1)}h)`;
+              })() : 'No data'}
             </p>
           </div>
           <div>
@@ -208,7 +255,7 @@ const Analytics = () => {
               Weekly Average
             </p>
             <p style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: '700' }}>
-              5.8h/day
+              {focusTrends.length > 0 ? (focusTrends.reduce((sum, item) => sum + item.hours, 0) / focusTrends.length).toFixed(1) : 0}h/day
             </p>
           </div>
         </div>

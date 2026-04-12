@@ -1,26 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, Zap, BarChart3, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Zap, BarChart3, Settings, Palette } from 'lucide-react';
 // CRITICAL FIX: This line prevents the "Link is not defined" error
 import { Link } from 'react-router-dom'; 
 
 
 const Sidebar = ({ currentPage, setCurrentPage, user }) => {
   const [avatarSeed, setAvatarSeed] = useState('Jeni');
+  const [showAvatarCustomizer, setShowAvatarCustomizer] = useState(false);
+
+  // 5 preset avatar options
+  const avatarOptions = ['avatar1', 'avatar2', 'avatar3', 'avatar4', 'avatar5'];
 
   useEffect(() => {
-    const savedSeed = localStorage.getItem('avatarSeed') || 'Jeni';
-    setAvatarSeed(savedSeed);
-  }, []);
+    const savedAvatar = user?.avatar || localStorage.getItem('avatarSeed') || 'avatar1';
+    setAvatarSeed(savedAvatar);
+  }, [user]);
 
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const savedSeed = localStorage.getItem('avatarSeed') || 'Jeni';
-      setAvatarSeed(savedSeed);
-    };
+  const handleAvatarChange = async (newAvatar) => {
+    setAvatarSeed(newAvatar);
+    localStorage.setItem('avatarSeed', newAvatar);
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+    // Save to database
+    if (user?._id) {
+      try {
+        await fetch(`http://localhost:5000/user/${user._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatar: newAvatar })
+        });
+      } catch (error) {
+        console.error('Failed to save avatar:', error);
+      }
+    }
+  };
 
   const links = [
     { name: 'Dashboard', key: 'dashboard', icon: LayoutDashboard },
@@ -112,6 +124,72 @@ const Sidebar = ({ currentPage, setCurrentPage, user }) => {
           );
         })}
       </nav>
+
+      {/* Avatar Customizer */}
+      <div style={{
+        marginTop: '1rem',
+        padding: '1rem 0',
+        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+      }}>
+        <button
+          onClick={() => setShowAvatarCustomizer(!showAvatarCustomizer)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            width: '100%',
+            padding: '0.5rem 1rem',
+            background: 'rgba(30, 41, 59, 0.5)',
+            border: 'none',
+            borderRadius: '8px',
+            color: '#94a3b8',
+            cursor: 'pointer',
+            fontSize: '12px',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <Palette size={14} />
+          <span>Customize Avatar</span>
+        </button>
+
+        {showAvatarCustomizer && (
+          <div style={{
+            marginTop: '0.5rem',
+            display: 'flex',
+            gap: '0.5rem',
+            flexWrap: 'wrap',
+            justifyContent: 'center'
+          }}>
+            {avatarOptions.map((avatar) => (
+              <button
+                key={avatar}
+                onClick={() => handleAvatarChange(avatar)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  border: avatarSeed === avatar ? '2px solid #10b981' : '2px solid transparent',
+                  padding: '2px',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <img
+                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatar}`}
+                  alt={avatar}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '50%',
+                    opacity: avatarSeed === avatar ? 1 : 0.7,
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Profile Section - Now wrapped in a Link to Settings */}
       <Link 

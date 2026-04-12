@@ -1,17 +1,165 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Activity, Clock, BookOpen, Award } from 'lucide-react';
 import io from 'socket.io-client';
 
-const StudyRoom = () => {
+const StudyRoom = ({ user, onUpdateUser }) => {
   const [students, setStudents] = useState([
     { id: 1, name: 'Alice Morgan', status: 'Focused', seed: 'Alice' },
     { id: 2, name: 'Bob Wilson', status: 'Focused', seed: 'Bob' },
     { id: 3, name: 'Charlie Davis', status: 'Focused', seed: 'Charlie' },
     { id: 4, name: 'Diana Chen', status: 'Focused', seed: 'Diana' },
   ]);
-  const [avatarSeed] = useState(localStorage.getItem('avatarSeed') || 'Jeni');
   const [selectedStudent, setSelectedStudent] = useState(null);
+
+  const [timerDuration, setTimerDuration] = useState(25);
+  const [remainingSeconds, setRemainingSeconds] = useState(timerDuration * 60);
+  const [isRunning, setIsRunning] = useState(false);
+  const [sessionMessages, setSessionMessages] = useState([]);
+  const [sessionXp, setSessionXp] = useState(0);
+  const [lastHeartbeatMin, setLastHeartbeatMin] = useState(0);
+
+  const timerIntervalRef = useRef(null);
+  const totalSeconds = useRef(timerDuration * 60);
+
+  useEffect(() => {
+    totalSeconds.current = timerDuration * 60;
+    if (!isRunning) {
+      setRemainingSeconds(timerDuration * 60);
+      setLastHeartbeatMin(0);
+      setSessionXp(0);
+    }
+  }, [timerDuration, isRunning]);
+
+  useEffect(() => {
+    const socket = io('http://localhost:5000');
+    
+    socket.on('student-joined', (data) => {
+      console.log('🔔 Student joined:', data.lastJoined.name);
+      setStudents(prev => {
+        const filtered = prev.filter(s => s.name !== data.lastJoined.name);
+        return [...filtered, { id: Math.random(), name: data.lastJoined.name, status: data.lastJoined.status, seed: data.lastJoined.avatar }];
+      });
+    });
+
+    socket.on('status-changed', (data) => {
+      console.log(`⚡ ${data.name} status changed to ${data.status}`);
+      setStudents(prev => prev.map(s => s.name === data.name ? { ...s, status: data.status } : s));
+    });
+
+    socket.on('student-left', (data) => {
+      console.log('👋 Student left:', data.name);
+      setStudents(prev => prev.filter(s => s.name !== data.name));
+    });
+
+    return () => socket.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isRunning) return;
+    timerIntervalRef.current = setInterval(() => {
+      setRemainingSeconds((prev) => {
+        const next = Math.max(prev - 1, 0);
+        return next;
+      });
+    }, 1000);
+
+    return () => clearInterval(timerIntervalRef.current);
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (!isRunning) return;
+
+    const elapsedSeconds = totalSeconds.current - remainingSeconds;
+    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+
+    if (elapsedMinutes > 0 && elapsedMinutes % 5 === 0 && elapsedMinutes > lastHeartbeatMin) {
+      const heartbeatMinutes = elapsedMinutes - lastHeartbeatMin;
+      pushHeartbeat(heartbeatMinutes);
+      setLastHeartbeatMin(elapsedMinutes);
+    }
+
+    if (remainingSeconds === 0) {
+      handleTimerEnd();
+    }
+  }, [remainingSeconds, isRunning, lastHeartbeatMin]);
+
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const secondsLeft = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}`;
+  };
+
+  const pushHeartbeat = async (minutes) => {
+    if (!user?._id || minutes <= 0) return;
+
+    const xp = minutes * 3;
+    setSessionXp(prev => prev + xp);
+    setSessionMessages(prev => [
+      `Heartbeat saved: +${xp} XP for ${minutes} focused minutes.`,
+      ...prev
+    ].slice(0, 4));
+
+    try {
+      const response = await fetch('http://localhost:5000/api/session/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user._id, intervalMinutes: minutes, xpEarned: xp })
+      });
+      const data = await response.json();
+      if (response.ok && data.user && typeof onUpdateUser === 'function') {
+        onUpdateUser(data.user);
+      }
+    } catch (error) {
+      console.error('Heartbeat failed:', error);
+    }
+  };
+
+  const handleTimerEnd = async () => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+    setIsRunning(false);
+
+    const elapsedSeconds = totalSeconds.current - remainingSeconds;
+    const elapsedMinutes = Math.max(1, Math.ceil(elapsedSeconds / 60));
+    const remainingMinutes = elapsedMinutes - lastHeartbeatMin;
+
+    if (remainingMinutes > 0) {
+      await pushHeartbeat(remainingMinutes);
+    }
+
+    try {
+      await fetch('http://localhost:5000/api/session/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?._id, totalFocusTime: elapsedMinutes })
+      });
+      setSessionMessages(prev => [`Session ended after ${elapsedMinutes} minutes`, ...prev].slice(0, 4));
+    } catch (error) {
+      console.error('Session end failed:', error);
+    }
+  };
+
+  const handleStartPause = () => {
+    if (!isRunning) {
+      setIsRunning(true);
+      setSessionMessages(prev => [`Session started for ${timerDuration} minutes`, ...prev].slice(0, 4));
+    } else {
+      setIsRunning(false);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      setSessionMessages(prev => ['Session paused', ...prev].slice(0, 4));
+    }
+  };
+
+  const handleReset = () => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    setIsRunning(false);
+    setRemainingSeconds(timerDuration * 60);
+    setLastHeartbeatMin(0);
+    setSessionXp(0);
+    setSessionMessages(prev => ['Timer reset', ...prev].slice(0, 4));
+  };
 
   useEffect(() => {
     const socket = io('http://localhost:5000');
@@ -66,10 +214,10 @@ const StudyRoom = () => {
 
   return (
     <div style={{
-      marginLeft: '280px',
       padding: '2rem',
       background: '#020617',
       minHeight: '100vh',
+      width: '100%',
     }}>
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
@@ -134,7 +282,7 @@ const StudyRoom = () => {
             fontWeight: '700',
             margin: '0.5rem 0 0 0',
           }}>
-            2h 15m
+            {formatTime(totalSeconds.current - remainingSeconds)}
           </p>
         </div>
         <div style={{ textAlign: 'center' }}>
@@ -147,8 +295,168 @@ const StudyRoom = () => {
             fontWeight: '700',
             margin: '0.5rem 0 0 0',
           }}>
-            +250
+            +{sessionXp}
           </p>
+        </div>
+      </div>
+
+      {/* Focus Timer & Heartbeat Panel */}
+      <div className="glass-card" style={{
+        padding: '1.5rem',
+        marginBottom: '2rem',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '1rem',
+      }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem'
+        }}>
+          <h3 style={{
+            margin: 0,
+            color: '#f1f5f9',
+            fontSize: '18px',
+            fontWeight: '700',
+          }}>
+            ⏲️ Focus Countdown
+          </h3>
+          <div style={{
+            padding: '1.5rem',
+            background: 'rgba(15, 23, 42, 0.8)',
+            borderRadius: '16px',
+            textAlign: 'center',
+            border: '1px solid rgba(16, 185, 129, 0.18)'
+          }}>
+            <p style={{
+              margin: 0,
+              color: '#94a3b8',
+              fontSize: '12px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em'
+            }}>
+              Remaining
+            </p>
+            <p style={{
+              margin: '0.75rem 0 0 0',
+              color: '#f1f5f9',
+              fontSize: '48px',
+              fontWeight: '700',
+            }}>
+              {formatTime(remainingSeconds)}
+            </p>
+            <p style={{
+              margin: '0.75rem 0 0 0',
+              color: '#94a3b8',
+              fontSize: '13px',
+            }}>
+              {isRunning ? 'Focus session in progress' : 'Paused or ready to start'}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {[15, 25, 35, 45].map((minutes) => (
+              <button
+                key={minutes}
+                onClick={() => {
+                  setTimerDuration(minutes);
+                  if (!isRunning) setRemainingSeconds(minutes * 60);
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: '90px',
+                  padding: '0.85rem',
+                  background: timerDuration === minutes ? '#10b981' : 'rgba(15, 23, 42, 0.8)',
+                  color: timerDuration === minutes ? '#fff' : '#cbd5e1',
+                  border: timerDuration === minutes ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  fontWeight: '700',
+                }}
+              >
+                {minutes} min
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={handleStartPause}
+              style={{
+                flex: 1,
+                padding: '0.95rem',
+                background: isRunning ? '#f59e0b' : '#10b981',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontWeight: '700',
+              }}
+            >
+              {isRunning ? 'Pause Session' : 'Start Session'}
+            </button>
+            <button
+              onClick={handleReset}
+              style={{
+                flex: 1,
+                padding: '0.95rem',
+                background: 'rgba(15, 23, 42, 0.9)',
+                color: '#cbd5e1',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontWeight: '700',
+              }}
+            >
+              Reset Timer
+            </button>
+          </div>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem'
+        }}>
+          <h3 style={{
+            margin: 0,
+            color: '#f1f5f9',
+            fontSize: '18px',
+            fontWeight: '700',
+          }}>
+            🔄 Heartbeat Logs
+          </h3>
+          <div style={{
+            padding: '1rem',
+            background: 'rgba(15, 23, 42, 0.8)',
+            borderRadius: '16px',
+            minHeight: '220px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              {sessionMessages.length === 0 ? (
+                <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
+                  Heartbeat updates will appear here every 5 minutes.
+                </p>
+              ) : (
+                sessionMessages.map((message, idx) => (
+                  <p key={idx} style={{ color: '#cbd5e1', fontSize: '13px', margin: 0 }}>
+                    {message}
+                  </p>
+                ))
+              )}
+            </div>
+            <p style={{
+              margin: 0,
+              color: '#64748b',
+              fontSize: '12px',
+            }}>
+              Focus time and XP sync live with the backend.
+            </p>
+          </div>
         </div>
       </div>
 
