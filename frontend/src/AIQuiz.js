@@ -20,9 +20,13 @@ const AIQuiz = () => {
       
       // CRITICAL FIX: Changed body key from 'material' to 'content' 
       // to match the backend variable exactly.
+      const token = localStorage.getItem('focussyncToken');
       const response = await fetch(backendURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({ content: material }), 
       });
       

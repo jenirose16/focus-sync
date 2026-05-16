@@ -12,7 +12,12 @@ const Dashboard = ({ user }) => {
 
   const fetchHistoryData = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/user/history/${user._id}`);
+      const token = localStorage.getItem('focussyncToken');
+      const response = await fetch(`http://localhost:5000/api/user/history/${user._id}`, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : ''
+        }
+      });
       const data = await response.json();
       setHistoryData(data);
     } catch (error) {

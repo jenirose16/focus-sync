@@ -23,9 +23,13 @@ const Sidebar = ({ currentPage, setCurrentPage, user }) => {
     // Save to database
     if (user?._id) {
       try {
+        const token = localStorage.getItem('focussyncToken');
         await fetch(`http://localhost:5000/user/${user._id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: token ? `Bearer ${token}` : ''
+          },
           body: JSON.stringify({ avatar: newAvatar })
         });
       } catch (error) {

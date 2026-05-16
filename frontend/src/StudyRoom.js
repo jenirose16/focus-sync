@@ -101,9 +101,13 @@ const StudyRoom = ({ user, onUpdateUser }) => {
     ].slice(0, 4));
 
     try {
+      const token = localStorage.getItem('focussyncToken');
       const response = await fetch('http://localhost:5000/api/session/heartbeat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({ userId: user._id, intervalMinutes: minutes, xpEarned: xp })
       });
       const data = await response.json();
@@ -130,9 +134,13 @@ const StudyRoom = ({ user, onUpdateUser }) => {
     }
 
     try {
+      const token = localStorage.getItem('focussyncToken');
       await fetch('http://localhost:5000/api/session/end', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({ userId: user?._id, totalFocusTime: elapsedMinutes })
       });
       setSessionMessages(prev => [`Session ended after ${elapsedMinutes} minutes`, ...prev].slice(0, 4));
